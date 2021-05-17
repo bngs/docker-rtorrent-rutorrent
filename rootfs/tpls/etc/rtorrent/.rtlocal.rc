@@ -1,6 +1,7 @@
 # Launch as a daemon
 system.daemon.set = true
 
+method.insert = cfg.logs, private|const|string, (cat,(cfg.basedir),"log/")
 method.insert = cfg.rundir, private|const|string, (cat,"/var/run/rtorrent/")
 
 # Gets the full path of data of a torrent (it's a workaround for the possibly empty 'd.base_path' attribute)

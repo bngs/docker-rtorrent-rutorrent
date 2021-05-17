@@ -1,66 +1,170 @@
-# Maximum and minimum number of peers to connect to per torrent
+#############################################################################
+# A minimal rTorrent configuration that provides the basic features
+# you want to have in addition to the built-in defaults.
+#
+# See https://github.com/rakshasa/rtorrent/wiki/CONFIG-Template
+# for an up-to-date version.
+#############################################################################
+
+
+## Instance layout (base paths)
+method.insert = cfg.basedir,  private|const|string, (cat,"/downloads/rtorrent/")
+method.insert = cfg.download, private|const|string, (cat,"/downloads/")
+method.insert = cfg.incdir, private|const|string, (cat,(cfg.download),"inc/")
+method.insert = cfg.completedir, private|const|string, (cat,(cfg.download),"completed/")
+method.insert = cfg.logs,     private|const|string, (cat,(cfg.basedir),"log/")
+method.insert = cfg.logfile,  private|const|string, (cat,(cfg.logs),"rtorrent-",(system.time),".log")
+method.insert = cfg.session,  private|const|string, (cat,(cfg.basedir),".session/")
+method.insert = cfg.watch,    private|const|string, (cat,(cfg.basedir),"watch/")
+method.insert = cfg.watch_audiobooks,    private|const|string, (cat,(cfg.watch),"audiobooks/")
+method.insert = cfg.watch_automovies,    private|const|string, (cat,(cfg.watch),"auto-movies/")
+method.insert = cfg.watch_ebooks,    private|const|string, (cat,(cfg.watch),"ebooks/")
+method.insert = cfg.watch_movies,    private|const|string, (cat,(cfg.watch),"movies/")
+method.insert = cfg.watch_music,    private|const|string, (cat,(cfg.watch),"music/")
+method.insert = cfg.watch_series,    private|const|string, (cat,(cfg.watch),"series/")
+method.insert = cfg.watch_uncat,    private|const|string, (cat,(cfg.watch),"uncat/")
+
+## Create instance directories
+execute.throw = sh, -c, (cat,\
+    "mkdir -p \"",(cfg.download),"\" ",\
+    "\"",(cfg.logs),"\" ",\
+    "\"",(cfg.session),"\" ",\
+    "\"",(cfg.incdir),"\" ",\
+    "\"",(cfg.completedir),"\" ",\
+    "\"",(cfg.watch),"\" ",\
+    "\"",(cfg.watch_audiobooks),"\" ",\
+    "\"",(cfg.watch_automovies),"\" ",\
+    "\"",(cfg.watch_ebooks),"\" ",\
+    "\"",(cfg.watch_movies),"\" ",\
+    "\"",(cfg.watch_music),"\" ",\
+    "\"",(cfg.watch_series),"\" ",\
+    "\"",(cfg.watch_uncat),"\" ")
+
+
+## Listening port for incoming peer traffic (fixed; you can also randomize it)
+network.port_range.set = 11322-11322
+network.port_random.set = no
+
+
+## Tracker-less torrent and UDP tracker support
+## (conservative settings for 'private' trackers, change for 'public')
+dht.mode.set = disable
+protocol.pex.set = no
+
+trackers.use_udp.set = no
+
+
+## Peer settings
+throttle.max_uploads.set = 100
+throttle.max_uploads.global.set = 250
+
 throttle.min_peers.normal.set = 1
 throttle.max_peers.normal.set = 100
-
-# Same as above but for seeding completed torrents (-1 = same as downloading)
 throttle.min_peers.seed.set = 1
-throttle.max_peers.seed.set = 50
+throttle.max_peers.seed.set = 100
+trackers.numwant.set = -1
 
-# Maximum number of simultanious uploads per torrent
-throttle.max_uploads.set = 15
-
-# Global upload and download rate in KiB. "0" for unlimited
-throttle.global_down.max_rate.set_kb = 0
-throttle.global_up.max_rate.set_kb = 0
-
-# XMLRPC size limit
-network.xmlrpc.size_limit.set = 4M
-
-# Enable DHT support for trackerless torrents or when all trackers are down
-# May be set to "disable" (completely disable DHT), "off" (do not start DHT),
-# "auto" (start and stop DHT as needed), or "on" (start DHT immediately)
-dht.mode.set = auto
-
-# Enable peer exchange (for torrents not marked private)
-protocol.pex.set = yes
-
-# Check hash for finished torrents. Might be usefull until the bug is
-# fixed that causes lack of diskspace not to be properly reported
-pieces.hash.on_completion.set = yes
-
-# Set whether the client should try to connect to UDP trackers
-#trackers.use_udp.set = yes
-
-# Set the max amount of memory address space used to mapping file chunks. This refers to memory mapping, not
-# physical memory allocation. Default: 1GB (max_memory_usage)
-# This may also be set using ulimit -m where 3/4 will be allocated to file chunks
-#pieces.memory.max.set = 1GB
-
-# Alternative calls to bind and ip that should handle dynamic ip's
-#schedule2 = ip_tick,0,1800,ip=rakshasa
-#schedule2 = bind_tick,0,1800,bind=rakshasa
-
-# Encryption options, set to none (default) or any combination of the following:
-# allow_incoming, try_outgoing, require, require_RC4, enable_retry, prefer_plaintext
 protocol.encryption.set = allow_incoming,try_outgoing,enable_retry
 
-# Set the umask for this process, which is applied to all files created by the program
-system.umask.set = 0022
 
-# Add a preferred filename encoding to the list
-encoding.add = UTF-8
+## Limits for file handle resources, this is optimized for
+## an `ulimit` of 1024 (a common default). You MUST leave
+## a ceiling of handles reserved for rTorrent's internal needs!
+network.http.max_open.set = 50
+network.max_open_files.set = 600
+network.max_open_sockets.set = 300
 
-# Watch a directory for new torrents, and stop those that have been deleted
-schedule2 = watch_directory, 1, 1, (cat,"load.start=",(cfg.watch),"*.torrent")
-schedule2 = untied_directory, 5, 5, (cat,"stop_untied=",(cfg.watch),"*.torrent")
 
-# Close torrents when diskspace is low
-schedule2 = monitor_diskspace, 15, 60, ((close_low_diskspace,1000M))
+## Memory resource usage (increase if you have a large number of items loaded,
+## and/or the available resources to spend)
+pieces.memory.max.set = 1500M
+network.xmlrpc.size_limit.set = 4M
 
-# Move finished (no need Autotools/Automove plugin on ruTorrent)
-method.insert = d.get_finished_dir, simple, "cat=$cfg.download_complete=,$d.custom1="
-method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
-method.set_key = event.download.finished,move_complete,"d.move_to_complete=$d.data_path=,$d.get_finished_dir="
 
-# Erase data when torrent deleted (no need erasedata plugin on ruTorrent)
-method.set_key = event.download.erased,delete_erased,"execute=rm,-rf,--,$d.data_path="
+## Basic operational settings (no need to change these)
+session.path.set = (cat, (cfg.session))
+directory.default.set = (cat, (cfg.incdir))
+log.execute = (cat, (cfg.logs), "execute.log")
+#log.xmlrpc = (cat, (cfg.logs), "xmlrpc.log")
+execute.nothrow = sh, -c, (cat, "echo >",\
+    (session.path), "rtorrent.pid", " ",(system.pid))
+
+
+## Other operational settings (check & adapt)
+encoding.add = utf8
+system.umask.set = 0027
+system.cwd.set = (directory.default)
+network.http.dns_cache_timeout.set = 25
+schedule2 = monitor_diskspace, 15, 60, ((close_low_diskspace, 1000M))
+#pieces.hash.on_completion.set = no
+#view.sort_current = seeding, greater=d.ratio=
+#keys.layout.set = qwerty
+#network.http.capath.set = "/etc/ssl/certs"
+#network.http.ssl_verify_peer.set = 0
+#network.http.ssl_verify_host.set = 0
+
+
+## Some additional values and commands
+method.insert = system.startup_time, value|const, (system.time)
+#method.insert = d.data_path, simple,\
+    "if=(d.is_multi_file),\
+        (cat, (d.directory), /),\
+        (cat, (d.directory), /, (d.name))"
+method.insert = d.session_file, simple, "cat=(session.path), (d.hash), .torrent"
+
+
+## Watch directories (add more as you like, but use unique schedule names)
+## Add & download straight away
+#schedule2 = watch_uncat, 10, 10, ((load.start_verbose, (cat, (cfg.watch), "uncat/*.torrent")))
+#schedule2 = watch_series, 11, 10, ((load.start_verbose, (cat, (cfg.watch), "series/*.torrent")))
+#schedule2 = watch_movies, 12, 10, ((load.start_verbose, (cat, (cfg.watch), "movies/*.torrent")))
+#schedule2 = watch_automovies, 13, 10, ((load.start_verbose, (cat, (cfg.watch), "auto-movies/*.torrent")))
+#schedule2 = watch_audiobooks, 14, 10, ((load.start_verbose, (cat, (cfg.watch), "audiobooks/*.torrent")))
+#schedule2 = watch_music, 14, 10, ((load.start_verbose, (cat, (cfg.watch), "music/*.torrent")))
+
+## Watch directories and add to correct folder based on category - also ruTorrent label
+
+method.insert = load_audiobooks, simple|private, "load.start_verbose=(argument.0), d.custom1.set=audiobooks"
+directory.watch.added = (cat,(cfg.watch_audiobooks)),"load_audiobooks"
+
+method.insert = load_automovies, simple|private, "load.start_verbose=(argument.0), d.custom1.set=auto-movies"
+directory.watch.added = (cat,(cfg.watch_automovies)),"load_automovies"
+
+method.insert = load_ebooks, simple|private, "load.start_verbose=(argument.0), d.custom1.set=ebooks"
+directory.watch.added = (cat,(cfg.watch_ebooks)),"load_ebooks"
+
+method.insert = load_movies, simple|private, "load.start_verbose=(argument.0), d.custom1.set=movies"
+directory.watch.added = (cat, (cfg.watch_movies)),"load_movies"
+
+method.insert = load_music, simple|private, "load.start_verbose=(argument.0), d.custom1.set=music"
+directory.watch.added = (cat, (cfg.watch_music)),"load_music"
+
+method.insert = load_series, simple|private, "load.start_verbose=(argument.0), d.custom1.set=series"
+directory.watch.added = (cat, (cfg.watch_series)),"load_series"
+
+method.insert = load_uncat, simple|private, "load.start_verbose=(argument.0), d.custom1.set=uncat"
+directory.watch.added = (cat, (cfg.watch_uncat)),"load_uncat"
+
+## Move files to correct complete folder
+
+method.insert = d.get_finished_dir,simple,"cat=$cfg.completedir=,$d.custom1="
+method.insert = d.update_dir,simple,"d.directory.set=$d.get_finished_dir="
+method.insert = d.move_torrent_data,simple,"execute=mkdir,-p,$d.get_finished_dir=;execute=mv,-f,$d.base_path=,$d.get_finished_dir=;"
+method.set_key = event.download.finished,move_complete,"d.update_dir=;d.move_torrent_data=;d.save_full_session="
+
+## Run the rTorrent process as a daemon in the background
+## (and control via XMLRPC sockets)
+#system.daemon.set = true
+#network.scgi.open_local = (cat,(session.path),rpc.socket)
+#execute.nothrow = chmod,770,(cat,(session.path),rpc.socket)
+
+
+## Logging:
+##   Levels = critical error warn notice info debug
+##   Groups = connection_* dht_* peer_* rpc_* storage_* thread_* tracker_* torrent_*
+print = (cat, "Logging to ", (cfg.logfile))
+log.open_file = "log", (cfg.logfile)
+log.add_output = "info", "log"
+#log.add_output = "tracker_debug", "log"
+
+### END of rtorrent.rc ###

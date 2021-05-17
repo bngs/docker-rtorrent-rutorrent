@@ -1,7 +1,6 @@
 # Launch as a daemon
 system.daemon.set = true
 
-method.insert = cfg.logs, private|const|string, (cat,(cfg.basedir),"log/")
 method.insert = cfg.rundir, private|const|string, (cat,"/var/run/rtorrent/")
 
 # Gets the full path of data of a torrent (it's a workaround for the possibly empty 'd.base_path' attribute)
@@ -24,9 +23,9 @@ dht.port.set = @RT_DHT_PORT@
 # Logging
 ## levels = critical error warn notice info debug
 ## groups = connection_* dht_* peer_* rpc_* storage_* thread_* tracker_* torrent_*
-log.open_file = "log",(cat,(cfg.logs),"rtorrent.log")
-log.add_output = "@RT_LOG_LEVEL@","log"
-log.add_output = "rpc_events","log"
+#log.open_file = "log",(cat,(cfg.logs),"rtorrent.log")
+#log.add_output = "@RT_LOG_LEVEL@","log"
+#log.add_output = "rpc_events","log"
 #log.execute = (cat,(cfg.logs),"execute.log")
 #log.xmlrpc = (cat,(cfg.logs),"xmlrpc.log")
 
